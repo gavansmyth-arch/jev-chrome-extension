@@ -11,6 +11,35 @@ test('providerHeaders adds the browser-access header for Anthropic only', () => 
   assert.equal(providerHeaders('http://localhost:11434/v1', '').Authorization, undefined);
 });
 
+test('requests send no temperature and use the token field each provider expects', async () => {
+  const bodies = [];
+  globalThis.fetch = async (url, opts) => { bodies.push({ url, body: JSON.parse(opts.body) }); return new Response(JSON.stringify({ choices: [{ message: { content: 'Tesla' } }] }), { status: 200 }); };
+  const run = (baseUrl) => resolveTypedText({ goal: 'find Tesla', field: 'f', pageText: '', quoted: [], typeValueKey: null, textModel: { mode: 'model', baseUrl, model: 'm', apiKey: 'k' } });
+  await run('https://api.anthropic.com/v1');
+  await run('https://api.openai.com/v1');
+  await run('https://api.groq.com/openai/v1');
+  assert.equal(bodies[0].body.temperature, undefined);
+  assert.equal(bodies[0].body.max_tokens, 2048);
+  assert.equal(bodies[1].body.max_completion_tokens, 2048);
+  assert.equal(bodies[1].body.max_tokens, undefined);
+  assert.equal(bodies[2].body.max_tokens, 2048);
+});
+
+test('a provider that rejects a field gets one retry without it', async () => {
+  const bodies = [];
+  globalThis.fetch = async (url, opts) => {
+    bodies.push(JSON.parse(opts.body));
+    if (bodies.length === 1) return new Response(JSON.stringify({ error: { message: "Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead." } }), { status: 400 });
+    return new Response(JSON.stringify({ choices: [{ message: { content: '{"text": "Tesla"}' } }] }), { status: 200 });
+  };
+  const result = await resolveTypedText({ goal: 'find Tesla', field: 'f', pageText: '', quoted: [], typeValueKey: null, textModel: { mode: 'model', baseUrl: 'https://proxy.test/v1', model: 'm', apiKey: 'k' } });
+  assert.deepEqual(result, { value: 'Tesla', source: 'model' });
+  assert.equal(bodies.length, 2);
+  assert.equal(bodies[0].max_tokens, 2048);
+  assert.equal(bodies[1].max_completion_tokens, 2048);
+  assert.equal(bodies[1].max_tokens, undefined);
+});
+
 test('the Claude chat request itself carries the browser-access header', async () => {
   let seen = null;
   globalThis.fetch = async (url, opts) => { seen = { url, headers: opts.headers }; return new Response(JSON.stringify({ choices: [{ message: { content: '{"text": "Tesla"}' } }] }), { status: 200 }); };

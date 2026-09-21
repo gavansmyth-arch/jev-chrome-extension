@@ -40,6 +40,46 @@ export function providerHeaders(base, apiKey) {
   return headers;
 }
 
+const OPENAI_HOST = /(^|\/\/)api\.openai\.com(\/|$)/i;
+
+// The request body. No sampling settings: the newest Claude and OpenAI
+// models reject `temperature`, and a one-line answer does not need it.
+// OpenAI's current models want `max_completion_tokens`; everyone else
+// understands `max_tokens`.
+export function chatRequest(base, model, messages, { tokenField, omit = [] } = {}) {
+  const field = tokenField || (OPENAI_HOST.test(base) ? 'max_completion_tokens' : 'max_tokens');
+  const body = { model, messages, [field]: MAX_TOKENS };
+  for (const key of omit) delete body[key];
+  return body;
+}
+
+// When a provider answers 400 naming one of our fields, says how to retry.
+export function rejectedField(response, body) {
+  if (response.ok || response.status !== 400) return null;
+  const message = String(body?.error?.message || body?.message || '');
+  if (/max_completion_tokens/i.test(message)) return { tokenField: 'max_tokens' };
+  if (/max_tokens/i.test(message)) return { tokenField: 'max_completion_tokens' };
+  if (/temperature|top_p/i.test(message)) return { omit: ['temperature', 'top_p'] };
+  return null;
+}
+
+async function postChat(base, headers, request) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  let response;
+  try {
+    response = await fetch(`${base}/chat/completions`, {
+      method: 'POST', headers, body: JSON.stringify(request), signal: controller.signal,
+    });
+  } catch (err) {
+    throw new Error(err.name === 'AbortError' ? 'The text helper took too long to answer.' : 'Could not reach the text helper.');
+  } finally {
+    clearTimeout(timer);
+  }
+  const bodyText = await response.text();
+  return { response, bodyText, body: extractJsonObject(bodyText) };
+}
+
 export function pickQuoted(quoted, typeValueKey) {
   if (quoted.length === 1) return quoted[0];
   if (quoted.length > 1 && typeof typeValueKey === 'string') {
@@ -52,33 +92,20 @@ export function pickQuoted(quoted, typeValueKey) {
 async function askTextModel({ goal, field, pageText, textModel }) {
   const base = String(textModel.baseUrl || '').replace(/\/+$/, '');
   if (!base || !textModel.model) throw new Error('The text helper needs a base URL and a model name. Check Options.');
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   const headers = providerHeaders(base, textModel.apiKey);
-  let response;
-  try {
-    response = await fetch(`${base}/chat/completions`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        model: textModel.model,
-        temperature: 0,
-        max_tokens: MAX_TOKENS,
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: `Task: ${goal}\nField: ${field}\nPage excerpt: ${String(pageText || '').slice(0, MAX_PAGE_EXCERPT)}` },
-        ],
-      }),
-      signal: controller.signal,
-    });
-  } catch (err) {
-    throw new Error(err.name === 'AbortError' ? 'The text helper took too long to answer.' : 'Could not reach the text helper.');
-  } finally {
-    clearTimeout(timer);
-  }
-  const bodyText = await response.text();
-  const body = extractJsonObject(bodyText);
+  const messages = [
+    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'user', content: `Task: ${goal}\nField: ${field}\nPage excerpt: ${String(pageText || '').slice(0, MAX_PAGE_EXCERPT)}` },
+  ];
   const label = `The text model (${textModel.model})`;
+  let request = chatRequest(base, textModel.model, messages);
+  let { response, bodyText, body } = await postChat(base, headers, request);
+  // A provider that rejects one of our fields gets one more try without it.
+  const retry = rejectedField(response, body);
+  if (retry) {
+    request = chatRequest(base, textModel.model, messages, retry);
+    ({ response, bodyText, body } = await postChat(base, headers, request));
+  }
   if (!response.ok) {
     const detail = body?.error?.message || body?.message || bodyText.slice(0, 160);
     throw new Error(`${label} returned an error (${response.status}${detail ? `: ${detail}` : ''}).`);

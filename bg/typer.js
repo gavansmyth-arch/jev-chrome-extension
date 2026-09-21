@@ -53,12 +53,14 @@ export function chatRequest(base, model, messages, { tokenField, omit = [] } = {
   return body;
 }
 
-// When a provider answers 400 naming one of our fields, says how to retry.
-export function rejectedField(response, body) {
+// When a provider answers 400 naming the token field we sent (its message
+// may name both fields), says how to retry with the other one.
+export function rejectedField(response, body, sentTokenField) {
   if (response.ok || response.status !== 400) return null;
   const message = String(body?.error?.message || body?.message || '');
-  if (/max_completion_tokens/i.test(message)) return { tokenField: 'max_tokens' };
-  if (/max_tokens/i.test(message)) return { tokenField: 'max_completion_tokens' };
+  if (sentTokenField && new RegExp(`\\b${sentTokenField}\\b`, 'i').test(message)) {
+    return { tokenField: sentTokenField === 'max_tokens' ? 'max_completion_tokens' : 'max_tokens' };
+  }
   if (/temperature|top_p/i.test(message)) return { omit: ['temperature', 'top_p'] };
   return null;
 }
@@ -101,7 +103,7 @@ async function askTextModel({ goal, field, pageText, textModel }) {
   let request = chatRequest(base, textModel.model, messages);
   let { response, bodyText, body } = await postChat(base, headers, request);
   // A provider that rejects one of our fields gets one more try without it.
-  const retry = rejectedField(response, body);
+  const retry = rejectedField(response, body, 'max_tokens' in request ? 'max_tokens' : 'max_completion_tokens');
   if (retry) {
     request = chatRequest(base, textModel.model, messages, retry);
     ({ response, bodyText, body } = await postChat(base, headers, request));

@@ -27,6 +27,19 @@ export function extractJsonObject(text) {
   }
 }
 
+const ANTHROPIC_HOST = /(^|\/\/)api\.anthropic\.com(\/|$)/i;
+
+// Headers for an OpenAI-style request. Local servers take no key. Anthropic
+// refuses requests that carry a browser Origin (an extension's do) unless this
+// extra header confirms the key is meant to live in the browser; here it is
+// the person's own key, stored only on their machine.
+export function providerHeaders(base, apiKey) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+  if (ANTHROPIC_HOST.test(base)) headers['anthropic-dangerous-direct-browser-access'] = 'true';
+  return headers;
+}
+
 export function pickQuoted(quoted, typeValueKey) {
   if (quoted.length === 1) return quoted[0];
   if (quoted.length > 1 && typeof typeValueKey === 'string') {
@@ -41,8 +54,7 @@ async function askTextModel({ goal, field, pageText, textModel }) {
   if (!base || !textModel.model) throw new Error('The text helper needs a base URL and a model name. Check Options.');
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  const headers = { 'Content-Type': 'application/json' };
-  if (textModel.apiKey) headers.Authorization = `Bearer ${textModel.apiKey}`; // local servers take no key
+  const headers = providerHeaders(base, textModel.apiKey);
   let response;
   try {
     response = await fetch(`${base}/chat/completions`, {
@@ -129,12 +141,13 @@ export async function resolveTypedText({ goal, field, pageText, quoted, typeValu
 export async function listModels(textModel) {
   const base = String(textModel.baseUrl || '').replace(/\/+$/, '');
   if (!base) throw new Error('Enter the base URL first.');
-  const isAnthropic = textModel.listModels === 'anthropic' || /api\.anthropic\.com/i.test(base);
+  const isAnthropic = textModel.listModels === 'anthropic' || ANTHROPIC_HOST.test(base);
   const headers = {};
   let url = `${base}/models`;
   if (isAnthropic) {
     headers['x-api-key'] = textModel.apiKey || '';
     headers['anthropic-version'] = '2023-06-01';
+    headers['anthropic-dangerous-direct-browser-access'] = 'true';
     url += '?limit=100';
   } else if (textModel.apiKey) {
     headers.Authorization = `Bearer ${textModel.apiKey}`;

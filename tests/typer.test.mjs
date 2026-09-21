@@ -1,6 +1,24 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { extractJsonObject, pickQuoted, replyText, resolveTypedText, listModels } from '../bg/typer.js';
+import { extractJsonObject, pickQuoted, replyText, resolveTypedText, listModels, providerHeaders } from '../bg/typer.js';
+
+test('providerHeaders adds the browser-access header for Anthropic only', () => {
+  const claude = providerHeaders('https://api.anthropic.com/v1', 'k');
+  assert.equal(claude['anthropic-dangerous-direct-browser-access'], 'true');
+  assert.equal(claude.Authorization, 'Bearer k');
+  const openai = providerHeaders('https://api.openai.com/v1', 'k');
+  assert.equal(openai['anthropic-dangerous-direct-browser-access'], undefined);
+  assert.equal(providerHeaders('http://localhost:11434/v1', '').Authorization, undefined);
+});
+
+test('the Claude chat request itself carries the browser-access header', async () => {
+  let seen = null;
+  globalThis.fetch = async (url, opts) => { seen = { url, headers: opts.headers }; return new Response(JSON.stringify({ choices: [{ message: { content: '{"text": "Tesla"}' } }] }), { status: 200 }); };
+  const result = await resolveTypedText({ goal: 'find Tesla', field: 'f', pageText: '', quoted: [], typeValueKey: null, textModel: { mode: 'model', baseUrl: 'https://api.anthropic.com/v1', model: 'claude-haiku-4-5', apiKey: 'k' } });
+  assert.equal(result.value, 'Tesla');
+  assert.equal(seen.url, 'https://api.anthropic.com/v1/chat/completions');
+  assert.equal(seen.headers['anthropic-dangerous-direct-browser-access'], 'true');
+});
 
 test('listModels reads OpenAI-style lists, strips the Gemini prefix, and sorts', async () => {
   let seen = null;
@@ -17,6 +35,7 @@ test('listModels uses Anthropic headers for the Claude list and reports errors',
   assert.deepEqual(await listModels({ baseUrl: 'https://api.anthropic.com/v1', apiKey: 'a', listModels: 'anthropic' }), ['claude-haiku-4-5']);
   assert.equal(seen.headers['x-api-key'], 'a');
   assert.equal(seen.headers['anthropic-version'], '2023-06-01');
+  assert.equal(seen.headers['anthropic-dangerous-direct-browser-access'], 'true');
   assert.match(seen.url, /\/models\?limit=100$/);
   globalThis.fetch = async () => new Response(JSON.stringify({ error: { message: 'bad key' } }), { status: 401 });
   await assert.rejects(listModels({ baseUrl: 'https://api.openai.com/v1', apiKey: 'x' }), /401: bad key/);

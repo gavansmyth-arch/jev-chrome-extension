@@ -6,7 +6,9 @@ export const STORAGE_KEY = 'settings';
 // Every preset speaks the OpenAI-style chat/completions format. `needsKey`
 // is false for local servers that take no API key.
 export const TEXT_MODEL_PRESETS = Object.freeze({
-  anthropic: { label: 'Claude (Anthropic)', baseUrl: 'https://api.anthropic.com/v1', model: 'claude-opus-5', needsKey: true },
+  // Haiku answers in well under a second and does not think before replying,
+  // which suits a one-line field filler inside an agent loop.
+  anthropic: { label: 'Claude (Anthropic)', baseUrl: 'https://api.anthropic.com/v1', model: 'claude-haiku-4-5', needsKey: true },
   openai: { label: 'OpenAI', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', needsKey: true },
   gemini: { label: 'Google Gemini', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'gemini-2.5-flash', needsKey: true },
   openrouter: { label: 'OpenRouter', baseUrl: 'https://openrouter.ai/api/v1', model: 'deepseek/deepseek-chat', needsKey: true },

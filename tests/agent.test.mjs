@@ -56,7 +56,10 @@ const choice = (key) => ({ type: 'choice', choice: key, confidence: 0.9, probabi
 const noul = (v) => ({ type: 'noul', noul: v });
 let script = [];
 const requests = [];
-globalThis.fetch = async (_url, opts) => {
+globalThis.fetch = async (url, opts) => {
+  if (String(url).includes('/chat/completions')) {
+    return new Response(JSON.stringify({ choices: [{ message: { content: '{"text": "Tesla"}' }, finish_reason: 'stop' }] }), { status: 200 });
+  }
   const body = JSON.parse(opts.body);
   requests.push(body);
   const next = script.shift();
@@ -142,6 +145,27 @@ test('asks the person for text when the goal has none, then continues with their
   assert.equal(run.status, 'done');
   assert.deepEqual(typed, ['latte']);
   assert.equal(run.steps[0].source, 'user');
+});
+
+test('uses the configured text model instead of asking the person', async () => {
+  settings.textModel = { mode: 'model', baseUrl: 'https://llm.test/v1', model: 'test-model', apiKey: 'k' };
+  setPage({ url: 'https://site.test/', title: 'Home', text: 'x', elements: [box] });
+  const typed = [];
+  onExecute = (msg) => { typed.push(msg.value); setPage({ url: 'https://site.test/?q=tesla', title: 'Results', text: 'results', elements: [] }); };
+  script = [
+    () => ({ action: choice('type'), type_target: choice('e1'), click_target: choice('e1'), goal_done: noul(0.1), stuck: noul(0.1) }),
+    () => ({ action: choice('done'), goal_done: noul(0.9), stuck: noul(0.1) }),
+  ];
+  try {
+    await agent.startRun({ goal: 'find stories about Tesla', mode: 'run', tab });
+    const run = await until(ended);
+    assert.equal(run.status, 'done');
+    assert.deepEqual(typed, ['Tesla']);
+    assert.equal(run.steps[0].source, 'model');
+    assert.equal(run.notes.length, 0);
+  } finally {
+    settings.textModel = { mode: 'ask' };
+  }
 });
 
 test('pauses before a risky click and stops when the person says no', async () => {

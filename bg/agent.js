@@ -279,7 +279,11 @@ async function gate(d) {
       goal: run.goal, field: d.targetLabel, pageText: d.snap.text,
       quoted: d.quoted, typeValueKey: d.typeValueKey, textModel,
     });
-    if (result.needUser) return waitFor(d, 'text', `What should Jev type into ${d.targetLabel}?`);
+    if (result.needUser) {
+      if (result.reason) note(result.reason);
+      const lead = result.reason ? `${result.reason} ` : '';
+      return waitFor(d, 'text', `${lead}What should Jev type into ${d.targetLabel}?`);
+    }
     d.value = result.value;
     d.source = result.source;
   }

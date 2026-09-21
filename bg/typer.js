@@ -4,12 +4,14 @@
 
 const TIMEOUT_MS = 20000;
 const MAX_PAGE_EXCERPT = 1500;
-const MAX_TOKENS = 200;
+const MAX_TOKENS = 1024; // room for models that think before answering
+const MAX_PLAIN_REPLY = 200;
 
 const SYSTEM_PROMPT = [
-  'You fill in exactly one form field for a browser agent that is carrying out a task.',
+  'You fill in exactly one form field for a browser agent that is carrying out a task on a web page.',
+  'Work out the best text to type from the task and the page excerpt: a search box gets the search words, a filter gets the filter value, a message box gets the message, and so on.',
   'Reply with JSON only, in the form {"text": "<the exact text to type>"}.',
-  'If the right value is not stated in the task, or it would be personal data, a password, a payment detail or anything you would have to make up, reply {"text": null}.',
+  'Reply {"text": null} only if the field needs personal or sensitive data that the task does not provide: a real name, address, email, phone number, password, one-time code, or payment details.',
 ].join(' ');
 
 export function extractJsonObject(text) {
@@ -62,24 +64,52 @@ async function askTextModel({ goal, field, pageText, textModel }) {
     clearTimeout(timer);
   }
   const bodyText = await response.text();
-  if (!response.ok) throw new Error(`The text helper returned an error (${response.status}).`);
-  const content = extractJsonObject(bodyText)?.choices?.[0]?.message?.content;
+  const body = extractJsonObject(bodyText);
+  const label = `The text model (${textModel.model})`;
+  if (!response.ok) {
+    const detail = body?.error?.message || body?.message || bodyText.slice(0, 160);
+    throw new Error(`${label} returned an error (${response.status}${detail ? `: ${detail}` : ''}).`);
+  }
+  const choice = body?.choices?.[0];
+  const content = choice?.message?.content;
+  if (typeof content !== 'string') {
+    return { value: null, reason: `${label} sent back a reply the extension could not read (${body?.error?.message || 'unexpected format'}).` };
+  }
+  const value = replyText(content);
+  if (value) return { value };
+  if (choice.finish_reason === 'length' || !content.trim()) return { value: null, reason: `${label} ran out of room before answering.` };
+  return { value: null, reason: `${label} declined to fill this field (it said: ${content.trim().slice(0, 120)}).` };
+}
+
+// Accepts the JSON the prompt asks for, and also a short plain reply, since
+// many models answer with just the text despite instructions.
+export function replyText(content) {
   const parsed = extractJsonObject(content);
-  return typeof parsed?.text === 'string' && parsed.text.trim() ? parsed.text : null;
+  if (parsed && Object.hasOwn(parsed, 'text')) {
+    return typeof parsed.text === 'string' && parsed.text.trim() ? parsed.text.trim() : null;
+  }
+  const plain = String(content ?? '').replace(/```[a-z]*\n?|```/g, '').trim().replace(/^["'“”]+|["'“”]+$/g, '').trim();
+  if (!plain || plain.length > MAX_PLAIN_REPLY || /^null$/i.test(plain)) return null;
+  return plain;
 }
 
 export async function resolveTypedText({ goal, field, pageText, quoted, typeValueKey, textModel }) {
   const fromGoal = pickQuoted(quoted, typeValueKey);
   if (fromGoal) return { value: fromGoal, source: quoted.length === 1 ? 'goal' : 'jev' };
-  if (textModel?.mode === 'model' && textModel.baseUrl && textModel.model) {
-    const value = await askTextModel({ goal, field, pageText, textModel });
-    if (value) return { value, source: 'model' };
+  const tm = textModel || {};
+  if (tm.mode !== 'model') return { needUser: true, reason: null };
+  if (!tm.baseUrl || !tm.model) return { needUser: true, reason: 'The text model is not fully set up: the base URL or model name is missing in Options.' };
+  try {
+    const { value, reason } = await askTextModel({ goal, field, pageText, textModel: tm });
+    return value ? { value, source: 'model' } : { needUser: true, reason };
+  } catch (err) {
+    console.error('Jev: text model failed', err);
+    return { needUser: true, reason: err.message };
   }
-  return { needUser: true };
 }
 
 export async function testTextModel(textModel) {
-  const value = await askTextModel({ goal: 'Search for "espresso"', field: "searchbox 'Search'", pageText: '', textModel });
-  if (!value) throw new Error('The text helper answered, but did not return a value for a simple test.');
+  const { value, reason } = await askTextModel({ goal: 'Search the site for coffee grinders', field: "searchbox 'Search'", pageText: '', textModel });
+  if (!value) throw new Error(reason || 'The text model answered, but did not return a value for a simple test.');
   return value;
 }

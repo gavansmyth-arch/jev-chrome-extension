@@ -8,13 +8,13 @@ const page = { url: '', title: '', text: '', elements: [], hash: 1, actions: [] 
 let onExecute = () => {};
 
 function setPage(next) {
-  Object.assign(page, { actions: [], hash: page.hash + 1 }, next);
+  Object.assign(page, { actions: [], hash: page.hash + 1, scroll: null }, next);
 }
 
 async function contentReply(msg) {
   switch (msg.type) {
     case 'jev:snapshot':
-      return { ok: true, snapshot: { url: page.url, title: page.title, text: page.text, elements: page.elements, scroll: { canDown: false, canUp: false }, focused: null, canGoBack: false } };
+      return { ok: true, snapshot: { url: page.url, title: page.title, text: page.text, elements: page.elements, scroll: page.scroll || { canDown: false, canUp: false }, focused: null, canGoBack: false } };
     case 'jev:fingerprint': return { ok: true, url: page.url, hash: page.hash };
     case 'jev:prepare': return { ok: true, x: 10, y: 10 };
     case 'jev:execute':
@@ -224,6 +224,19 @@ test('clicking "Next page" repeatedly is progress, not a loop', async () => {
   assert.equal(run.status, 'done');
   assert.equal(run.steps.length, 5);
   assert.deepEqual(run.notes, []);
+});
+
+test('warns after three scrolls in a row and gives up after six', async () => {
+  setPage({ url: 'https://site.test/long', title: 'Long', text: 'x', elements: [link], scroll: { canDown: true, canUp: false } });
+  onExecute = () => { page.hash += 1; }; // scrolling reveals different content each time
+  const scroll = () => ({ action: choice('scroll_down'), click_target: choice('e1'), goal_done: noul(0.1), stuck: noul(0.1) });
+  script = [scroll, scroll, scroll, scroll, scroll, scroll, scroll];
+  await agent.startRun({ goal: 'find the pricing page', mode: 'run', tab });
+  const run = await until(ended);
+  assert.equal(run.status, 'blocked');
+  assert.match(run.message, /Kept scrolling/);
+  assert.equal(run.steps.length, 6);
+  assert.match(run.notes[0], /Scrolling repeatedly/);
 });
 
 test('ends as blocked after three actions that change nothing', async () => {

@@ -13,6 +13,8 @@ import { TrustedInput } from './input.js';
 import { resolveTypedText } from './typer.js';
 
 const NO_CHANGE_LIMIT = 3;
+const SCROLL_WARN_AT = 3;
+const SCROLL_LIMIT = 6;
 const VETO_THRESHOLD = 0.5;
 const WAIT_ACTION_MS = 1000;
 const NAV_GRACE_MS = 150;
@@ -58,7 +60,7 @@ export async function startRun({ goal, mode, tab }) {
     id: Date.now().toString(36), goal: text, mode: mode === 'step' ? 'step' : 'run',
     tabId: tab.id, openerTabId: null, status: 'running', message: 'Starting…',
     step: 0, maxSteps: settings.drive.maxSteps, steps: [], notes: [], history: [], visited: [tab.url],
-    targets: [], targetFailures: {}, noChange: 0, vetoedDone: false, vetoedBlocked: false,
+    targets: [], targetFailures: {}, noChange: 0, scrollStreak: 0, vetoedDone: false, vetoedBlocked: false,
     loopWarnings: {}, retried: false, waiting: null, trusted: settings.drive.trustedInput,
     startedAt: Date.now(), endedAt: null,
   });
@@ -355,13 +357,19 @@ async function act(d) {
 
   const key = elementKey(d.targetElement);
   const freshUrl = Boolean(after.url) && !run.visited.includes(after.url);
+  const isScroll = d.action === ACTIONS.SCROLL_DOWN || d.action === ACTIONS.SCROLL_UP;
   setRun({
     visited: freshUrl ? [...run.visited, after.url] : run.visited,
     noChange: effect === 'no visible change' ? run.noChange + 1 : 0,
+    scrollStreak: isScroll ? run.scrollStreak + 1 : 0,
     // Reaching a new page is progress, not a loop, even through the same control ("Next page").
     targets: key && !freshUrl ? [...run.targets, key] : run.targets,
   });
-  if (run.noChange >= NO_CHANGE_LIMIT) end('blocked', `${NO_CHANGE_LIMIT} actions in a row changed nothing on the page.`);
+  if (run.noChange >= NO_CHANGE_LIMIT) return end('blocked', `${NO_CHANGE_LIMIT} actions in a row changed nothing on the page.`);
+  if (run.scrollStreak === SCROLL_WARN_AT) {
+    note('Scrolling repeatedly has not surfaced the task. Every control on the page, including off-screen ones, is already listed; pick one of them, or report blocked if none fits.');
+  }
+  if (run.scrollStreak >= SCROLL_LIMIT) end('blocked', `Kept scrolling (${SCROLL_LIMIT} times in a row) without acting on anything.`);
 }
 
 function record(d, summary, effect) {
@@ -449,7 +457,9 @@ async function pressEnter() {
 /* ---- page helpers ---- */
 
 async function snapshot() {
-  const reply = await sendToTab(run.tabId, { type: 'jev:snapshot', maxText: settings.drive.maxTextChars });
+  const reply = await sendToTab(run.tabId, {
+    type: 'jev:snapshot', maxText: settings.drive.maxTextChars, maxElements: settings.drive.maxElements,
+  });
   if (!reply?.ok) throw new Error(reply?.reason || 'Could not read the page.');
   return reply.snapshot;
 }

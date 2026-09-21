@@ -4,7 +4,8 @@
 
 const TIMEOUT_MS = 20000;
 const MAX_PAGE_EXCERPT = 1500;
-const MAX_TOKENS = 1024; // room for models that think before answering
+const MAX_TOKENS = 2048; // room for models that think before answering
+const RAW_SNIPPET = 160;
 const MAX_PLAIN_REPLY = 200;
 
 const SYSTEM_PROMPT = [
@@ -70,15 +71,29 @@ async function askTextModel({ goal, field, pageText, textModel }) {
     const detail = body?.error?.message || body?.message || bodyText.slice(0, 160);
     throw new Error(`${label} returned an error (${response.status}${detail ? `: ${detail}` : ''}).`);
   }
-  const choice = body?.choices?.[0];
-  const content = choice?.message?.content;
-  if (typeof content !== 'string') {
-    return { value: null, reason: `${label} sent back a reply the extension could not read (${body?.error?.message || 'unexpected format'}).` };
+  const content = replyContent(body);
+  if (content == null) {
+    const detail = body?.error?.message || bodyText.trim().slice(0, RAW_SNIPPET) || 'empty reply';
+    return { value: null, reason: `${label} sent back a reply the extension could not read: ${detail}` };
   }
   const value = replyText(content);
   if (value) return { value };
-  if (choice.finish_reason === 'length' || !content.trim()) return { value: null, reason: `${label} ran out of room before answering.` };
+  const finish = body?.choices?.[0]?.finish_reason;
+  if (finish === 'length' || !content.trim()) return { value: null, reason: `${label} ran out of room before answering.` };
   return { value: null, reason: `${label} declined to fill this field (it said: ${content.trim().slice(0, 120)}).` };
+}
+
+// Servers differ in where they put the text: OpenAI-style message.content
+// (a string or a list of parts), the older choices[].text, or Ollama's
+// native message.content / response. Returns null when none is present.
+export function replyContent(body) {
+  const choice = body?.choices?.[0];
+  const candidates = [choice?.message?.content, choice?.text, body?.message?.content, body?.response, body?.output_text];
+  for (const c of candidates) {
+    if (typeof c === 'string') return c;
+    if (Array.isArray(c)) return c.map((part) => (typeof part === 'string' ? part : part?.text || '')).join('');
+  }
+  return null;
 }
 
 // Accepts the JSON the prompt asks for, and also a short plain reply, since

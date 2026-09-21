@@ -22,7 +22,6 @@ var JevContent = globalThis.JevContent || (globalThis.JevContent = {});
   const SECTION_MAX = 60;
   const HREF_MAX = 160;
   const OPTIONS_MAX = 30;
-  const NEAR_VIEW_FRACTION = 0.5; // half a viewport above and below still counts
   const FINGERPRINT_CHARS = 4000;
 
   let registry = new Map(); // id → element, for the latest snapshot
@@ -181,21 +180,30 @@ var JevContent = globalThis.JevContent || (globalThis.JevContent = {});
     return text.length > max ? `${text.slice(0, max)}…` : text;
   }
 
-  ns.snapshot = function snapshot({ maxText = 6000 } = {}) {
+  // Every usable control on the page, on-screen ones first and then the
+  // nearest off-screen ones, up to maxElements. Off-screen controls stay
+  // choosable: the executor scrolls to them, so Jev need not scroll blindly.
+  ns.snapshot = function snapshot({ maxText = 6000, maxElements = 120 } = {}) {
     const raw = [];
     collect(document, raw);
     const vh = innerHeight;
     const vw = innerWidth;
-    const elements = [];
-    registry = new Map();
+    const usable = [];
     for (const el of raw) {
       if (isDisabled(el)) continue;
       if (el.tagName === 'INPUT' && SKIP_INPUT_TYPES.has((el.type || '').toLowerCase())) continue;
       if (!isVisible(el)) continue;
       const r = el.getBoundingClientRect();
-      const near = r.bottom > -vh * NEAR_VIEW_FRACTION && r.top < vh * (1 + NEAR_VIEW_FRACTION);
-      if (!near) continue;
       const inView = r.bottom > 0 && r.top < vh && r.right > 0 && r.left < vw;
+      const distance = inView ? 0 : Math.min(Math.abs(r.top - vh), Math.abs(r.bottom));
+      usable.push({ el, r, inView, distance });
+    }
+    usable.sort((a, b) => Number(b.inView) - Number(a.inView) || a.distance - b.distance);
+
+    const elements = [];
+    registry = new Map();
+    for (const { el, r, inView } of usable) {
+      if (elements.length >= maxElements) break;
       if (inView && isCovered(el, r)) continue;
       const id = `e${elements.length + 1}`;
       registry.set(id, el);

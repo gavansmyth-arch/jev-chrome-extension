@@ -47,6 +47,22 @@ test('when the model runs out of room or declines, the person is asked with the 
   assert.match(result.reason, /declined/);
 });
 
+test('replies in other common shapes are read too', async () => {
+  mockFetch(200, JSON.stringify({ choices: [{ message: { content: [{ type: 'text', text: '{"text": "Tesla"}' }] } }] }));
+  assert.deepEqual(await ask(), { value: 'Tesla', source: 'model' });
+  mockFetch(200, JSON.stringify({ choices: [{ text: 'Tesla' }] }));
+  assert.deepEqual(await ask(), { value: 'Tesla', source: 'model' });
+  mockFetch(200, JSON.stringify({ message: { role: 'assistant', content: 'Tesla' } }));
+  assert.deepEqual(await ask(), { value: 'Tesla', source: 'model' });
+});
+
+test('an unreadable reply shows what the server actually sent', async () => {
+  mockFetch(200, JSON.stringify({ result: { answer: 'Tesla' } }));
+  const result = await ask();
+  assert.equal(result.needUser, true);
+  assert.match(result.reason, /could not read: \{"result"/);
+});
+
 test('an HTTP error from the model becomes a readable reason, not a crash', async () => {
   mockFetch(401, JSON.stringify({ error: { message: 'invalid x-api-key' } }));
   const result = await ask();

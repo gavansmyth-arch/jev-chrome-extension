@@ -73,7 +73,7 @@ function shorten(text, max) {
 // Element ids change with every snapshot; this key stays stable for the same
 // control across snapshots, so loops and failures can be tracked.
 export function elementKey(el) {
-  return el ? `${el.role}|${el.name}|${el.href || ''}` : null;
+  return el ? `${el.role}|${el.name}|${el.href || ''}|${el.section || ''}` : null;
 }
 
 export function describeElement(el) {

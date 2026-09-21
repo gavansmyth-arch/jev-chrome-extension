@@ -1,7 +1,7 @@
 // Service worker: toolbar button, right-click menu, keyboard shortcut, and
 // the message bridge between the side panel and the Drive agent.
 
-import { startRun, stepRun, stopRun, answerRun, currentRun, onRunChange, exportTrace } from './agent.js';
+import { startRun, stepRun, stopRun, answerRun, currentRun, onRunChange, exportTrace, ready } from './agent.js';
 
 const MENU_ID = 'ask-jev';
 const PENDING_KEY = 'pendingSelection';
@@ -42,10 +42,13 @@ onRunChange((run) => {
 });
 
 async function handle(msg) {
+  await ready;
   switch (msg.type) {
     case 'run:get': return { run: currentRun() };
     case 'run:start': {
-      const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+      const tab = msg.tabId
+        ? await chrome.tabs.get(msg.tabId)
+        : (await chrome.tabs.query({ active: true, lastFocusedWindow: true }))[0];
       return { run: await startRun({ goal: msg.goal, mode: msg.mode, tab }) };
     }
     case 'run:step': await stepRun(); return {};

@@ -33,8 +33,12 @@ const settings = {
   drive: { maxSteps: 6, stepDelayMs: 0, badges: false, trustedInput: false, confirmRisky: true, riskyWords: '', askBelow: 0, blockedSites: 'bank.test', maxTextChars: 6000, maxElements: 120 },
 };
 const noop = { addListener() {}, removeListener() {} };
+const sessionStore = {};
 globalThis.chrome = {
-  storage: { local: { get: async () => ({ settings }) } },
+  storage: {
+    local: { get: async () => ({ settings }) },
+    session: { get: async (key) => ({ [key]: sessionStore[key] }), set: async (v) => Object.assign(sessionStore, v) },
+  },
   tabs: {
     sendMessage: async (_tabId, msg) => contentReply(msg),
     get: async (id) => ({ id, status: 'complete', url: page.url }),
@@ -167,6 +171,35 @@ test('step mode does one action then pauses; stop ends it', async () => {
 test('refuses blocked sites and non-web pages up front', async () => {
   await assert.rejects(agent.startRun({ goal: 'g', mode: 'run', tab: { id: 1, url: 'https://online.bank.test/' } }), /blocked sites/);
   await assert.rejects(agent.startRun({ goal: 'g', mode: 'run', tab: { id: 1, url: 'chrome://extensions' } }), /normal web pages/);
+});
+
+test('stops as soon as a click lands on a blocked site', async () => {
+  const bankLink = { ...link, id: 'e1', name: 'Online banking', href: 'https://online.bank.test/' };
+  setPage({ url: 'https://site.test/', title: 'Home', text: 'x', elements: [bankLink] });
+  onExecute = () => setPage({ url: 'https://online.bank.test/', title: 'Bank', text: 'Log in', elements: [link] });
+  script = [
+    () => ({ action: choice('click'), click_target: choice('e1'), goal_done: noul(0.1), stuck: noul(0.1) }),
+    () => ({ action: choice('click'), click_target: choice('e1'), goal_done: noul(0.1), stuck: noul(0.1) }),
+  ];
+  await agent.startRun({ goal: 'check my balance', mode: 'run', tab });
+  const run = await until(ended);
+  assert.equal(run.status, 'blocked');
+  assert.match(run.message, /blocked sites list/);
+  assert.equal(run.steps.length, 1);
+});
+
+test('clicking "Next page" repeatedly is progress, not a loop', async () => {
+  const next = { id: 'e1', role: 'link', name: 'Next page', kind: 'click', inView: true, href: 'https://site.test/list' };
+  let pageNo = 1;
+  setPage({ url: 'https://site.test/list?page=1', title: 'List', text: 'x', elements: [next] });
+  onExecute = () => { pageNo += 1; setPage({ url: `https://site.test/list?page=${pageNo}`, title: 'List', text: `page ${pageNo}`, elements: [next] }); };
+  const clickNext = () => ({ action: choice('click'), click_target: choice('e1'), goal_done: noul(0.1), stuck: noul(0.05) });
+  script = [clickNext, clickNext, clickNext, clickNext, () => ({ action: choice('done'), goal_done: noul(0.9), stuck: noul(0.05) })];
+  await agent.startRun({ goal: 'go to page 5', mode: 'run', tab });
+  const run = await until(ended);
+  assert.equal(run.status, 'done');
+  assert.equal(run.steps.length, 5);
+  assert.deepEqual(run.notes, []);
 });
 
 test('ends as blocked after three actions that change nothing', async () => {

@@ -124,3 +124,5 @@ npm test
 ```
 
 Runs the unit tests for the decision logic, settings, text resolution and URL checks, plus an end-to-end test of the Drive loop against a fake Chrome and a scripted Jev.
+
+Publishing to the Chrome Web Store: see [PUBLISHING.md](PUBLISHING.md); the listing text and screenshots are in [store/](store/).

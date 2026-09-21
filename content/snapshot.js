@@ -231,10 +231,18 @@ var JevContent = globalThis.JevContent || (globalThis.JevContent = {});
     return h.toString(16);
   }
 
+  // Form values are part of the fingerprint so that typing or selecting
+  // counts as a change; password values are never read.
+  function formValues() {
+    return Array.from(document.querySelectorAll('input, textarea, select'))
+      .map((el) => ((el.type || '').toLowerCase() === 'password' ? '' : `${el.value}${el.checked ? '*' : ''}`))
+      .join('');
+  }
+
   ns.fingerprint = function fingerprint() {
     const text = document.body ? document.body.innerText.slice(0, FINGERPRINT_CHARS) : '';
     const count = document.querySelectorAll(SELECTOR).length;
-    return { url: location.href, hash: hashOf(`${text}|${count}|${scrollY | 0}`) };
+    return { url: location.href, hash: hashOf(`${text}|${count}|${scrollY | 0}|${formValues()}`) };
   };
 
   ns.deepActiveElement = deepActiveElement;

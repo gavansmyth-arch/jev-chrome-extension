@@ -16,12 +16,14 @@ export class TrustedInput {
     });
   }
 
+  // Resolves true when this call attached, false when it was already attached.
   async attach(tabId) {
-    if (this.attached && this.tabId === tabId) return;
+    if (this.attached && this.tabId === tabId) return false;
     await this.detach();
     await chrome.debugger.attach({ tabId }, PROTOCOL_VERSION);
     this.tabId = tabId;
     this.attached = true;
+    return true;
   }
 
   async detach() {

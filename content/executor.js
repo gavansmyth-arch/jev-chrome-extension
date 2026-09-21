@@ -80,10 +80,13 @@ var JevContent = globalThis.JevContent || (globalThis.JevContent = {});
     return { ok: true };
   }
 
-  function selectOption(el, value) {
-    const wanted = String(value ?? '').trim();
+  // Prefers the option's position (what Jev actually chose); falls back to matching text.
+  function selectOption(el, value, index) {
+    const wanted = String(value ?? '').replace(/\s+/g, ' ').trim();
     const options = Array.from(el.options || []);
-    const option = options.find((o) => (o.textContent || '').trim() === wanted) || options.find((o) => o.value === wanted);
+    const option = (Number.isInteger(index) && options[index])
+      || options.find((o) => (o.textContent || '').replace(/\s+/g, ' ').trim() === wanted)
+      || options.find((o) => o.value === wanted);
     if (!option) return fail(`The dropdown has no option "${wanted}".`);
     el.value = option.value;
     fire(el, 'input');
@@ -104,7 +107,7 @@ var JevContent = globalThis.JevContent || (globalThis.JevContent = {});
     return { ok: true };
   }
 
-  ns.execute = async function execute({ action, id, value }) {
+  ns.execute = async function execute({ action, id, value, index }) {
     if (action === 'scroll_down' || action === 'scroll_up') {
       const sign = action === 'scroll_down' ? 1 : -1;
       window.scrollBy({ top: sign * innerHeight * SCROLL_FRACTION, behavior: 'instant' });
@@ -120,7 +123,7 @@ var JevContent = globalThis.JevContent || (globalThis.JevContent = {});
       return { ok: true };
     }
     if (action === 'type') return typeInto(el, value);
-    if (action === 'select') return selectOption(el, value);
+    if (action === 'select') return selectOption(el, value, index);
     return fail(`Unknown action "${action}".`);
   };
 

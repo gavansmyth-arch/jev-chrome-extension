@@ -20,6 +20,7 @@ const LOAD_TIMEOUT_MS = 8000;
 const TARGET_FAIL_LIMIT = 2;
 const TOP_PROBS = 5;
 const KEEPALIVE_MS = 20000;
+const ATTACH_SETTLE_MS = 300;
 const PAUSED_MESSAGE = 'Paused. Press Step for the next action.';
 const GATED_ACTIONS = new Set([ACTIONS.CLICK, ACTIONS.TYPE, ACTIONS.SELECT]);
 const ENDED = new Set(['done', 'blocked', 'stopped', 'error']);
@@ -58,7 +59,7 @@ export async function startRun({ goal, mode, tab }) {
     tabId: tab.id, openerTabId: null, status: 'running', message: 'Starting…',
     step: 0, maxSteps: settings.drive.maxSteps, steps: [], notes: [], history: [], visited: [tab.url],
     targets: [], targetFailures: {}, noChange: 0, vetoedDone: false, vetoedBlocked: false,
-    loopWarned: false, retried: false, waiting: null, trusted: settings.drive.trustedInput,
+    loopWarnings: {}, retried: false, waiting: null, trusted: settings.drive.trustedInput,
     startedAt: Date.now(), endedAt: null,
   });
   startKeepalive();
@@ -79,7 +80,9 @@ export async function stopRun() {
 }
 
 export async function answerRun({ ok, value }) {
-  if (!run || run.status !== 'waiting' || !pending) throw new Error('Jev is not waiting for an answer.');
+  if (!run || run.status !== 'waiting' || !pending) {
+    throw new Error(run && ENDED.has(run.status) ? 'That run has already ended. Start a new one.' : 'Jev is not waiting for an answer.');
+  }
   const decision = pending;
   pending = null;
   if (ok === false) return end('stopped', 'Stopped at your request.');
@@ -110,6 +113,8 @@ export function exportTrace() {
 function setRun(patch) {
   run = { ...run, ...patch };
   listeners.forEach((fn) => fn(run));
+  // Kept in session storage so a recycled service worker can recover cleanly.
+  chrome.storage.session.set({ run }).catch((err) => console.debug('Jev: could not save run state', err?.message || err));
 }
 const note = (text) => setRun({ notes: [...run.notes, text] });
 const remember = (line) => setRun({ history: [...run.history, line] });
@@ -203,7 +208,14 @@ async function resume(decision) {
 async function decide() {
   const { drive, typesafe } = settings;
   await waitForTabLoad(run.tabId, LOAD_TIMEOUT_MS);
+  // Attach before measuring anything: Chrome's "started debugging" bar shifts the page.
+  if (run.trusted && (await attachTrusted())) await sleep(ATTACH_SETTLE_MS);
   const snap = await snapshot();
+  const host = hostOf(snap.url);
+  if (isBlockedHost(host, drive.blockedSites)) {
+    end('blocked', `${host} is on your blocked sites list, so the run stopped there.`);
+    return null;
+  }
   const usable = snap.elements.filter((el) => (run.targetFailures[elementKey(el)] || 0) < TARGET_FAIL_LIMIT);
   const candidates = selectCandidates(usable, drive.maxElements);
   const quoted = quotedStrings(run.goal);
@@ -246,11 +258,11 @@ function passesVetoes(d) {
   }
   const key = elementKey(d.targetElement);
   if (key && detectLoop(run.targets, key)) {
-    if (run.loopWarned) {
+    if (run.loopWarnings[key]) {
       end('blocked', `Kept returning to ${d.targetLabel} without finishing the task.`);
       return false;
     }
-    setRun({ loopWarned: true });
+    setRun({ loopWarnings: { ...run.loopWarnings, [key]: 1 } });
     note(`${d.targetLabel} has been used repeatedly without finishing the task; choose something else.`);
     return false;
   }
@@ -271,7 +283,10 @@ async function gate(d) {
     d.value = result.value;
     d.source = result.source;
   }
-  if (d.action === ACTIONS.SELECT && d.value == null) d.value = await chooseOption(d);
+  if (d.action === ACTIONS.SELECT && d.value == null) {
+    d.optionIndex = await chooseOption(d);
+    d.value = d.targetElement.options[d.optionIndex];
+  }
 
   if (!d.passed.has('unsure') && run.mode === 'run' && drive.askBelow > 0 && GATED_ACTIONS.has(d.action)) {
     const confidence = Math.min(d.actionConfidence, d.targetConfidence ?? 1);
@@ -307,7 +322,7 @@ async function chooseOption(d) {
   const { data } = await askTypeSafe({ ...settings.typesafe, state, questions });
   const index = Number(String(data.answers?.option?.choice ?? '').replace(/^o/, ''));
   if (!options[index]) throw new DecisionError('Jev did not pick a valid dropdown option.', data.answers);
-  return options[index];
+  return index;
 }
 
 /* ---- act ---- */
@@ -335,10 +350,12 @@ async function act(d) {
   record(d, summary, effect);
 
   const key = elementKey(d.targetElement);
+  const freshUrl = Boolean(after.url) && !run.visited.includes(after.url);
   setRun({
-    visited: after.url && !run.visited.includes(after.url) ? [...run.visited, after.url] : run.visited,
+    visited: freshUrl ? [...run.visited, after.url] : run.visited,
     noChange: effect === 'no visible change' ? run.noChange + 1 : 0,
-    targets: key ? [...run.targets, key] : run.targets,
+    // Reaching a new page is progress, not a loop, even through the same control ("Next page").
+    targets: key && !freshUrl ? [...run.targets, key] : run.targets,
   });
   if (run.noChange >= NO_CHANGE_LIMIT) end('blocked', `${NO_CHANGE_LIMIT} actions in a row changed nothing on the page.`);
 }
@@ -363,17 +380,28 @@ function targetFailed(d, summary, reason) {
 }
 
 async function perform(d) {
-  const { action, targetId, value } = d;
+  const { action, targetId, value, optionIndex } = d;
   switch (action) {
     case ACTIONS.CLICK: return clickTarget(targetId);
     case ACTIONS.TYPE: return typeTarget(targetId, value);
-    case ACTIONS.SELECT: return sendToTab(run.tabId, { type: 'jev:execute', action, id: targetId, value });
+    case ACTIONS.SELECT: return sendToTab(run.tabId, { type: 'jev:execute', action, id: targetId, value, index: optionIndex });
     case ACTIONS.SCROLL_DOWN:
     case ACTIONS.SCROLL_UP: return sendToTab(run.tabId, { type: 'jev:execute', action });
     case ACTIONS.PRESS_ENTER: return pressEnter();
     case ACTIONS.GO_BACK: await chrome.tabs.goBack(run.tabId); return { ok: true };
     case ACTIONS.WAIT: await sleep(WAIT_ACTION_MS); return { ok: true };
     default: return { ok: false, reason: `Unknown action "${action}".` };
+  }
+}
+
+async function attachTrusted() {
+  try {
+    return await trusted.attach(run.tabId);
+  } catch (err) {
+    console.error('Jev: trusted input could not attach, falling back to synthetic events', err);
+    setRun({ trusted: false });
+    note('Trusted input could not attach; using synthetic events instead.');
+    return false;
   }
 }
 
@@ -474,3 +502,24 @@ trusted.onLost = (reason) => {
   setRun({ trusted: false });
   note(`Trusted input was switched off (${reason}); using synthetic events instead.`);
 };
+
+/* ---- recovery after the service worker restarts ---- */
+
+async function restoreRun() {
+  try {
+    const { run: saved } = await chrome.storage.session.get('run');
+    if (!saved || run) return;
+    if (ENDED.has(saved.status)) {
+      run = saved;
+      return;
+    }
+    // The worker was recycled mid-run: the loop is gone, so close the run out honestly.
+    await quiet(chrome.debugger.detach({ tabId: saved.tabId }), 'detach after restart');
+    run = { ...saved, status: 'error', waiting: null, endedAt: Date.now(), message: 'The extension restarted during this run. Please start it again.' };
+    await chrome.storage.session.set({ run });
+  } catch (err) {
+    console.error('Jev: could not restore the previous run', err);
+  }
+}
+
+export const ready = restoreRun();

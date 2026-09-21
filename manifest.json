@@ -1,9 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Jev",
-  "version": "2.0.0",
-  "description": "Drive the tab you're looking at with TypeSafe Jev, or highlight text and ask it quick yes/no, pick-one and rating questions.",
-  "author": "Gavan Smyth",
+  "version": "2.0.1",
+  "description": "Drive the tab you're on with TypeSafe Jev, or highlight text and ask it yes/no, pick-one and rating questions. Unofficial.",
   "minimum_chrome_version": "116",
   "icons": {
     "16": "icons/icon16.png",

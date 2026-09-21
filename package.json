@@ -1,6 +1,6 @@
 {
   "name": "jev-chrome-extension",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "private": true,
   "description": "Jev for Chrome: drive the tab you're looking at with TypeSafe Jev, or ask it about any text.",
   "type": "module",

@@ -37,7 +37,7 @@ Jev only *chooses*; it doesn't write. When a step needs typing, it uses whatever
 ### Jev checks with you
 
 - **Risky clicks.** Anything that looks like it would buy, pay, checkout, send, post, publish, delete, remove, subscribe, transfer, book or sign up pauses for a **Yes / No** first. Add your own words in Options.
-- **Low confidence.** If Jev is less than 40% sure about a step (adjustable), it asks before doing it.
+- **Low confidence (off by default).** Set a threshold under Options → "Ask me when confidence is below", and Jev asks before any step it's less sure about than that.
 - **Blocked sites.** List your bank or anything else under Options → Never drive these sites.
 
 ### Built-in safety
@@ -72,7 +72,7 @@ Reading the answers: **Yes** (green) means 0.8 or above, **No** (red) 0.2 or bel
 | TypeSafe API key, model, endpoint | Required. **Test** sends one tiny request. |
 | Typing text | *Ask me* (default) or a text model with its own key. |
 | Max steps, pause between steps | Run length and pace. |
-| Ask me when confidence is below | 0 = never ask. Applies to Run, not Step. |
+| Ask me when confidence is below | 0 = never ask (default). Applies to Run, not Step. |
 | Show numbered badges | The yellow numbers drawn on the page. |
 | Real clicks and keystrokes | DevTools-protocol input (recommended). |
 | Confirm before risky clicks, extra words | The Yes/No gate and your additions. |

@@ -30,7 +30,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
     trustedInput: true,
     confirmRisky: true,
     riskyWords: '',
-    askBelow: 0.4,
+    askBelow: 0, // off: with 50-100 controls on a page, confidence in any one is naturally low
     blockedSites: '',
     maxTextChars: 6000,
     maxElements: 120,

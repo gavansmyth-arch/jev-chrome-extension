@@ -26,7 +26,7 @@ DRIVE
 
 JEV CHECKS WITH YOU
 • Pauses for a Yes/No before clicks that buy, pay, send, post, publish, delete, subscribe or transfer
-• Asks before acting when it's unsure
+• Can ask before acting when it's unsure (optional, off by default)
 • Blocked-sites list for your bank and anything else off limits
 • Two independent checks stop it declaring "done" early
 • Password fields are never read or filled

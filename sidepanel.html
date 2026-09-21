@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Jev</title>
+  <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand"><img src="icons/icon32.png" alt="" width="20" height="20"><span>Jev</span></div>
+    <button id="settingsToggle" class="ghost" type="button" aria-expanded="false" aria-controls="settings">Settings</button>
+  </header>
+
+  <section id="settings" class="panel" hidden>
+    <label for="apiKey">TypeSafe API key</label>
+    <div class="row">
+      <input id="apiKey" type="password" autocomplete="off" spellcheck="false" placeholder="apikey_…">
+      <button id="revealKey" class="ghost small" type="button">Show</button>
+    </div>
+    <label for="model">Model</label>
+    <input id="model" type="text" spellcheck="false" placeholder="jev-latest">
+    <div class="row end">
+      <span id="settingsStatus" class="status" role="status"></span>
+      <button id="saveSettings" type="button">Save</button>
+    </div>
+    <p class="fine">Your key is stored only in this browser and sent only to api.typesafe.ai.
+      Get one at <a href="https://console.typesafe.ai/keys" target="_blank" rel="noopener">console.typesafe.ai/keys</a>.</p>
+  </section>
+
+  <main>
+    <label for="state">Text for Jev to judge</label>
+    <textarea id="state" rows="6" placeholder="Highlight text on a page and right-click → Ask Jev, or paste it here."></textarea>
+    <p id="source" class="fine" hidden></p>
+
+    <label for="pack">What should Jev check?</label>
+    <select id="pack"></select>
+    <p id="packHint" class="fine"></p>
+
+    <details id="editor">
+      <summary>Edit questions</summary>
+      <textarea id="questions" rows="12" spellcheck="false" class="mono"></textarea>
+      <div class="row end">
+        <span id="questionsStatus" class="status" role="status"></span>
+        <button id="resetQuestions" class="ghost small" type="button">Reset to pack</button>
+      </div>
+    </details>
+
+    <button id="ask" class="primary" type="button">Ask Jev <kbd>⌘↵</kbd></button>
+
+    <section id="results" aria-live="polite"></section>
+  </main>
+
+  <script type="module" src="sidepanel.js"></script>
+</body>
+</html>

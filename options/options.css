@@ -39,3 +39,6 @@ button:disabled { opacity: 0.5; cursor: progress; }
 .status { display: block; font-size: 12px; color: var(--muted); min-height: 1.2em; margin-top: 6px; }
 .status.bad { color: var(--no); }
 .status.good { color: var(--yes); }
+details.advanced { margin-top: 12px; }
+details.advanced summary { cursor: pointer; font-size: 12px; font-weight: 600; color: var(--muted); }
+label a { font-weight: 500; color: var(--muted); margin-left: 4px; }

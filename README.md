@@ -32,7 +32,7 @@ Jev reads the page as a numbered list of links, buttons and fields (you'll see t
 
 ### Put text in quotes
 
-Jev only *chooses*; it doesn't write. When a step needs typing, it uses whatever you put in quotes in the goal (`Search for "espresso"`). If there are several quoted bits, Jev picks the right one for the field. If there's nothing quoted, the panel **asks you** what to type. You can also plug in a text model under Options → Typing text: pick Claude, OpenAI, Gemini, OpenRouter, DeepSeek, Groq, Mistral or a local Ollama from the list (the URL and a model name fill in), paste that provider's API key, press **Test**, then **Save**. Any other service that accepts OpenAI-style requests works via *Custom*.
+Jev only *chooses*; it doesn't write. When a step needs typing, it uses whatever you put in quotes in the goal (`Search for "espresso"`). If there are several quoted bits, Jev picks the right one for the field. If there's nothing quoted, the panel **asks you** what to type. You can also plug in a text model under Options → Typing text: pick a provider (Claude, OpenAI, Gemini, OpenRouter, DeepSeek, Groq, Mistral, xAI Grok, Qwen, a local Ollama or LM Studio), pick a model from the dropdown or press **Load models** to fetch the provider's current list, paste that provider's API key (there's a "get one here" link), press **Test**, then **Save**. Any other service that accepts OpenAI-style requests works via *Private / self-hosted server*.
 
 ### Jev checks with you
 

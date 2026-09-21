@@ -35,20 +35,28 @@
       <label class="check"><input type="radio" name="tmMode" id="tmAsk" value="ask"> <span><strong>Ask me</strong> in the panel (no extra key needed)</span></label>
       <label class="check"><input type="radio" name="tmMode" id="tmModel" value="model"> <span><strong>Use a text model</strong>: Claude, OpenAI, Gemini, OpenRouter, DeepSeek, Groq, Mistral, a local Ollama, or any other service that accepts OpenAI-style requests. It never invents personal data.</span></label>
       <div id="tmFields" class="indent">
-        <p class="fine">Pick a provider to fill in its URL and a suggested model, then paste that provider's own API key (from their website, not from TypeSafe). For a private or self-hosted server choose the last option and enter its URL, model name and key (leave the key blank if the server doesn't use one).</p>
+        <p class="fine">Pick a provider: the address and a suggested model fill in by themselves. Paste that provider's own API key (not your TypeSafe key), press <strong>Test</strong>, then <strong>Save</strong>. Model names change over time, so <strong>Load models</strong> fetches the provider's current list with your key.</p>
         <div class="grid2">
           <div><label for="tmProvider">Provider</label><select id="tmProvider"></select></div>
-          <div><label for="tmModelName">Model</label><input id="tmModelName" type="text" spellcheck="false"></div>
+          <div><label for="tmModelSelect">Model</label><select id="tmModelSelect"></select></div>
         </div>
-        <label for="tmBase">Base URL</label>
-        <input id="tmBase" type="url" spellcheck="false" placeholder="https://…/v1">
-        <label for="tmKey">API key</label>
+        <input id="tmModelName" type="text" spellcheck="false" placeholder="Type the model name exactly as the provider spells it" hidden>
+        <div class="row">
+          <button id="tmLoad" class="small" type="button">Load models from the provider</button>
+          <span id="tmLoadStatus" class="status" role="status"></span>
+        </div>
+        <label for="tmKey">API key <a id="tmKeyLink" href="#" target="_blank" rel="noopener" hidden>(get one here)</a></label>
         <div class="row">
           <input id="tmKey" type="password" autocomplete="off" spellcheck="false">
           <button id="tmReveal" class="ghost small" type="button">Show</button>
           <button id="tmTest" class="small" type="button">Test</button>
         </div>
         <span id="tmStatus" class="status" role="status"></span>
+        <details class="advanced">
+          <summary>Advanced: base URL</summary>
+          <label for="tmBase">Base URL (filled in automatically; change only for a private server or a proxy)</label>
+          <input id="tmBase" type="url" spellcheck="false" placeholder="https://…/v1">
+        </details>
       </div>
     </section>
 

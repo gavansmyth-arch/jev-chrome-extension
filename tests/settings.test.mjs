@@ -8,7 +8,10 @@ test('text model presets cover the main providers and say whether a key is neede
   assert.equal(TEXT_MODEL_PRESETS.ollama.needsKey, false);
   for (const [id, preset] of Object.entries(TEXT_MODEL_PRESETS)) {
     assert.ok(preset.label, `${id} has a label`);
-    if (id !== 'custom') assert.match(preset.baseUrl, /^https?:\/\//, `${id} has a URL`);
+    assert.ok(Array.isArray(preset.models), `${id} has a models list`);
+    if (id !== 'custom') assert.match(preset.baseUrl, /^https?:\/\/[^\s]+[^/]$/, `${id} has a URL without a trailing slash`);
+    if (preset.models.length) assert.equal(preset.models[0], preset.model, `${id} defaults to the first suggested model`);
+    if (preset.needsKey) assert.match(preset.keyUrl, /^https:\/\//, `${id} links to where to get a key`);
   }
   assert.equal(TEXT_MODEL_PRESETS[DEFAULT_SETTINGS.textModel.provider] !== undefined, true);
 });

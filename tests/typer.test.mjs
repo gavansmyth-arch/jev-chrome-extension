@@ -1,6 +1,26 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { extractJsonObject, pickQuoted, replyText, resolveTypedText } from '../bg/typer.js';
+import { extractJsonObject, pickQuoted, replyText, resolveTypedText, listModels } from '../bg/typer.js';
+
+test('listModels reads OpenAI-style lists, strips the Gemini prefix, and sorts', async () => {
+  let seen = null;
+  globalThis.fetch = async (url, opts) => { seen = { url, headers: opts.headers }; return new Response(JSON.stringify({ data: [{ id: 'models/gemini-2.5-pro' }, { id: 'models/gemini-2.5-flash' }] }), { status: 200 }); };
+  const ids = await listModels({ baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/', apiKey: 'g' });
+  assert.deepEqual(ids, ['gemini-2.5-flash', 'gemini-2.5-pro']);
+  assert.equal(seen.url, 'https://generativelanguage.googleapis.com/v1beta/openai/models');
+  assert.equal(seen.headers.Authorization, 'Bearer g');
+});
+
+test('listModels uses Anthropic headers for the Claude list and reports errors', async () => {
+  let seen = null;
+  globalThis.fetch = async (url, opts) => { seen = { url, headers: opts.headers }; return new Response(JSON.stringify({ data: [{ id: 'claude-haiku-4-5' }] }), { status: 200 }); };
+  assert.deepEqual(await listModels({ baseUrl: 'https://api.anthropic.com/v1', apiKey: 'a', listModels: 'anthropic' }), ['claude-haiku-4-5']);
+  assert.equal(seen.headers['x-api-key'], 'a');
+  assert.equal(seen.headers['anthropic-version'], '2023-06-01');
+  assert.match(seen.url, /\/models\?limit=100$/);
+  globalThis.fetch = async () => new Response(JSON.stringify({ error: { message: 'bad key' } }), { status: 401 });
+  await assert.rejects(listModels({ baseUrl: 'https://api.openai.com/v1', apiKey: 'x' }), /401: bad key/);
+});
 
 const model = { mode: 'model', baseUrl: 'https://llm.test/v1', model: 'test-model', apiKey: 'secret' };
 const chat = (content, finish_reason = 'stop') => JSON.stringify({ choices: [{ message: { content }, finish_reason }] });

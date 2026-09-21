@@ -123,6 +123,43 @@ export async function resolveTypedText({ goal, field, pageText, quoted, typeValu
   }
 }
 
+// Asks the provider for its current model list. OpenAI-style servers answer
+// GET {baseUrl}/models with {data: [{id}]}; Anthropic's native list needs its
+// own headers; Gemini prefixes ids with "models/".
+export async function listModels(textModel) {
+  const base = String(textModel.baseUrl || '').replace(/\/+$/, '');
+  if (!base) throw new Error('Enter the base URL first.');
+  const isAnthropic = textModel.listModels === 'anthropic' || /api\.anthropic\.com/i.test(base);
+  const headers = {};
+  let url = `${base}/models`;
+  if (isAnthropic) {
+    headers['x-api-key'] = textModel.apiKey || '';
+    headers['anthropic-version'] = '2023-06-01';
+    url += '?limit=100';
+  } else if (textModel.apiKey) {
+    headers.Authorization = `Bearer ${textModel.apiKey}`;
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  let response;
+  try {
+    response = await fetch(url, { headers, signal: controller.signal });
+  } catch (err) {
+    throw new Error(err.name === 'AbortError' ? 'The provider took too long to answer.' : `Could not reach ${base}.`);
+  } finally {
+    clearTimeout(timer);
+  }
+  const body = extractJsonObject(await response.text());
+  if (!response.ok) {
+    const detail = body?.error?.message || body?.message || '';
+    throw new Error(`Could not list models (${response.status}${detail ? `: ${detail}` : ''}).`);
+  }
+  const rows = Array.isArray(body?.data) ? body.data : Array.isArray(body?.models) ? body.models : [];
+  const ids = rows.map((m) => String(m?.id || m?.name || '').replace(/^models\//, '')).filter(Boolean);
+  if (!ids.length) throw new Error('The provider returned no models. Check the base URL and key.');
+  return [...new Set(ids)].sort((a, b) => a.localeCompare(b));
+}
+
 export async function testTextModel(textModel) {
   const { value, reason } = await askTextModel({ goal: 'Search the site for coffee grinders', field: "searchbox 'Search'", pageText: '', textModel });
   if (!value) throw new Error(reason || 'The text model answered, but did not return a value for a simple test.');

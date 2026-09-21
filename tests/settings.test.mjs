@@ -1,6 +1,17 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULT_SETTINGS, mergeSettings, parseList, isBlockedHost } from '../shared/settings.js';
+import { DEFAULT_SETTINGS, TEXT_MODEL_PRESETS, mergeSettings, parseList, isBlockedHost } from '../shared/settings.js';
+
+test('text model presets cover the main providers and say whether a key is needed', () => {
+  assert.equal(TEXT_MODEL_PRESETS.anthropic.baseUrl, 'https://api.anthropic.com/v1');
+  assert.equal(TEXT_MODEL_PRESETS.anthropic.needsKey, true);
+  assert.equal(TEXT_MODEL_PRESETS.ollama.needsKey, false);
+  for (const [id, preset] of Object.entries(TEXT_MODEL_PRESETS)) {
+    assert.ok(preset.label, `${id} has a label`);
+    if (id !== 'custom') assert.match(preset.baseUrl, /^https?:\/\//, `${id} has a URL`);
+  }
+  assert.equal(TEXT_MODEL_PRESETS[DEFAULT_SETTINGS.textModel.provider] !== undefined, true);
+});
 
 test('mergeSettings deep-merges a partial patch without touching defaults', () => {
   const merged = mergeSettings(DEFAULT_SETTINGS, { drive: { maxSteps: 5 }, typesafe: { apiKey: 'k' } });

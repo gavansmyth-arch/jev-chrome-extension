@@ -16,7 +16,7 @@ Jev is a Chrome extension published by Gavan Smyth. It is not affiliated with Ty
 - *Drive:* on every step, your goal, the current tab's URL, title and visible text (up to the character limit set in Options, 6,000 by default), a list of the interactive elements on the page (their labels, current values and link targets), and the last ten actions taken.
 - *Ask:* the text you highlighted or pasted, and the questions being asked.
 
-**To a text model of your choice (optional):** only if you enable *Use a text model* in Options. When a Drive step needs text typed, the goal, the field's label and an excerpt of the page text (up to 1,500 characters) are sent to the provider and model you configured (for example OpenRouter, DeepSeek or OpenAI). By default this is off, and the extension asks you what to type instead.
+**To a text model of your choice (optional):** only if you enable *Use a text model* in Options. When a Drive step needs text typed, the goal, the field's label and an excerpt of the page text (up to 1,500 characters) are sent to the provider and model you configured (for example Anthropic, OpenAI, Google, OpenRouter, DeepSeek, Groq, Mistral, or a local Ollama server on your own machine). By default this is off, and the extension asks you what to type instead.
 
 Nothing is sent anywhere else. There is no analytics, telemetry, advertising or crash reporting. The publisher never receives any of your data.
 

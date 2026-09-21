@@ -20,6 +20,11 @@ test('resolveTypedText asks the person when nothing is quoted and no model is se
   assert.deepEqual(result, { needUser: true });
 });
 
+test('resolveTypedText asks the person when the model mode has no URL or model set', async () => {
+  const result = await resolveTypedText({ goal: 'fill it in', field: 'f', pageText: '', quoted: [], typeValueKey: null, textModel: { mode: 'model', apiKey: 'k', baseUrl: '', model: '' } });
+  assert.deepEqual(result, { needUser: true });
+});
+
 test('resolveTypedText prefers quoted text over the model', async () => {
   const result = await resolveTypedText({ goal: 'x', field: 'f', pageText: '', quoted: ['latte'], typeValueKey: null, textModel: { mode: 'model', apiKey: 'k' } });
   assert.deepEqual(result, { value: 'latte', source: 'goal' });

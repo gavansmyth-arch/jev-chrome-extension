@@ -25,7 +25,7 @@
       <span id="tsStatus" class="status" role="status"></span>
       <div class="grid2">
         <div><label for="tsModel">Model</label><input id="tsModel" type="text" spellcheck="false" placeholder="jev-latest"></div>
-        <div><label for="tsEndpoint">Endpoint</label><input id="tsEndpoint" type="url" spellcheck="false" placeholder="https://api.typesafe.ai/v1/systemone"></div>
+        <div><label for="tsEndpoint">Endpoint URL (change for a private or self-hosted Jev server)</label><input id="tsEndpoint" type="url" spellcheck="false" placeholder="https://api.typesafe.ai/v1/systemone"></div>
       </div>
     </section>
 
@@ -33,8 +33,9 @@
       <h2>Typing text</h2>
       <p class="fine">Jev only chooses; it doesn't write. When a step needs text, Jev first uses anything in quotes in your goal. Otherwise:</p>
       <label class="check"><input type="radio" name="tmMode" id="tmAsk" value="ask"> <span><strong>Ask me</strong> in the panel (no extra key needed)</span></label>
-      <label class="check"><input type="radio" name="tmMode" id="tmModel" value="model"> <span><strong>Use a text model</strong> (OpenAI-compatible; never invents personal data)</span></label>
+      <label class="check"><input type="radio" name="tmMode" id="tmModel" value="model"> <span><strong>Use a text model</strong>: Claude, OpenAI, Gemini, OpenRouter, DeepSeek, Groq, Mistral, a local Ollama, or any other service that accepts OpenAI-style requests. It never invents personal data.</span></label>
       <div id="tmFields" class="indent">
+        <p class="fine">Pick a provider to fill in its URL and a suggested model, then paste that provider's own API key (from their website, not from TypeSafe). For a private or self-hosted server choose the last option and enter its URL, model name and key (leave the key blank if the server doesn't use one).</p>
         <div class="grid2">
           <div><label for="tmProvider">Provider</label><select id="tmProvider"></select></div>
           <div><label for="tmModelName">Model</label><input id="tmModelName" type="text" spellcheck="false"></div>

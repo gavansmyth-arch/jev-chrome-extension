@@ -38,11 +38,13 @@ async function askTextModel({ goal, field, pageText, textModel }) {
   if (!base || !textModel.model) throw new Error('The text helper needs a base URL and a model name. Check Options.');
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const headers = { 'Content-Type': 'application/json' };
+  if (textModel.apiKey) headers.Authorization = `Bearer ${textModel.apiKey}`; // local servers take no key
   let response;
   try {
     response = await fetch(`${base}/chat/completions`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${textModel.apiKey}`, 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         model: textModel.model,
         temperature: 0,
@@ -69,7 +71,7 @@ async function askTextModel({ goal, field, pageText, textModel }) {
 export async function resolveTypedText({ goal, field, pageText, quoted, typeValueKey, textModel }) {
   const fromGoal = pickQuoted(quoted, typeValueKey);
   if (fromGoal) return { value: fromGoal, source: quoted.length === 1 ? 'goal' : 'jev' };
-  if (textModel?.mode === 'model' && textModel.apiKey) {
+  if (textModel?.mode === 'model' && textModel.baseUrl && textModel.model) {
     const value = await askTextModel({ goal, field, pageText, textModel });
     if (value) return { value, source: 'model' };
   }

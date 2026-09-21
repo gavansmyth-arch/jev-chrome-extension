@@ -88,8 +88,10 @@ function read() {
 
 async function save() {
   const patch = read();
-  if (patch.textModel.mode === 'model' && !patch.textModel.apiKey) {
-    return flash(ui.saveStatus, 'The text model needs an API key, or choose "Ask me".', 'bad');
+  if (patch.textModel.mode === 'model') {
+    const { baseUrl, model, apiKey, provider } = patch.textModel;
+    if (!baseUrl || !model) return flash(ui.saveStatus, 'The text model needs a base URL and a model name, or choose "Ask me".', 'bad');
+    if (!apiKey && TEXT_MODEL_PRESETS[provider]?.needsKey) return flash(ui.saveStatus, 'This provider needs an API key. Paste it, or choose "Ask me".', 'bad');
   }
   try {
     await saveSettings(patch);

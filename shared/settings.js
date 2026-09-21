@@ -3,11 +3,18 @@
 
 export const STORAGE_KEY = 'settings';
 
+// Every preset speaks the OpenAI-style chat/completions format. `needsKey`
+// is false for local servers that take no API key.
 export const TEXT_MODEL_PRESETS = Object.freeze({
-  openrouter: { label: 'OpenRouter', baseUrl: 'https://openrouter.ai/api/v1', model: 'deepseek/deepseek-chat' },
-  deepseek: { label: 'DeepSeek', baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
-  openai: { label: 'OpenAI', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
-  custom: { label: 'Custom (OpenAI-compatible)', baseUrl: '', model: '' },
+  anthropic: { label: 'Claude (Anthropic)', baseUrl: 'https://api.anthropic.com/v1', model: 'claude-opus-5', needsKey: true },
+  openai: { label: 'OpenAI', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', needsKey: true },
+  gemini: { label: 'Google Gemini', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'gemini-2.5-flash', needsKey: true },
+  openrouter: { label: 'OpenRouter', baseUrl: 'https://openrouter.ai/api/v1', model: 'deepseek/deepseek-chat', needsKey: true },
+  deepseek: { label: 'DeepSeek', baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat', needsKey: true },
+  groq: { label: 'Groq', baseUrl: 'https://api.groq.com/openai/v1', model: 'llama-3.3-70b-versatile', needsKey: true },
+  mistral: { label: 'Mistral', baseUrl: 'https://api.mistral.ai/v1', model: 'mistral-small-latest', needsKey: true },
+  ollama: { label: 'Ollama (local, no key)', baseUrl: 'http://localhost:11434/v1', model: 'llama3.2', needsKey: false },
+  custom: { label: 'Private / self-hosted server (any OpenAI-compatible URL)', baseUrl: '', model: '', needsKey: false },
 });
 
 export const DEFAULT_SETTINGS = Object.freeze({

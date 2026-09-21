@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Jev</title>
+  <link rel="stylesheet" href="panel.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand"><img src="../icons/icon32.png" alt="" width="20" height="20"><span>Jev</span></div>
+    <nav class="tabs" role="tablist" aria-label="Mode">
+      <button role="tab" id="tabDrive" type="button" aria-selected="true" aria-controls="drive">Drive</button>
+      <button role="tab" id="tabAsk" type="button" aria-selected="false" aria-controls="ask">Ask</button>
+    </nav>
+    <button id="openOptions" class="ghost small" type="button">Options</button>
+  </header>
+
+  <p id="setupHint" class="hint" hidden>Add your TypeSafe API key in <a href="#" id="setupLink">Options</a> to get started.</p>
+
+  <section id="drive" role="tabpanel" aria-labelledby="tabDrive">
+    <label for="goal">What should Jev do on this tab?</label>
+    <textarea id="goal" rows="3" placeholder='e.g. Search Wikipedia for "espresso" and open the article'></textarea>
+    <select id="examples" aria-label="Example goals"><option value="">Try an example…</option></select>
+
+    <div class="row controls">
+      <button id="run" class="primary" type="button">Run</button>
+      <button id="step" type="button" title="Do one action, then pause">Step</button>
+      <button id="stop" type="button" class="ghost">Stop</button>
+    </div>
+    <p id="driveStatus" class="status-line" role="status"></p>
+    <p id="driveError" class="error-line" role="alert" hidden></p>
+
+    <section id="waiting" class="waiting" hidden aria-live="assertive">
+      <p id="waitPrompt"></p>
+      <div id="waitText" class="row" hidden>
+        <input id="waitInput" type="text" placeholder="Text for Jev to type" autocomplete="off">
+        <button id="waitSend" type="button" class="primary small">Type it</button>
+      </div>
+      <div id="waitConfirm" class="row" hidden>
+        <button id="waitYes" type="button" class="primary small">Yes, go ahead</button>
+        <button id="waitNo" type="button" class="small">No, stop</button>
+      </div>
+    </section>
+
+    <ol id="steps" class="steps" aria-label="Steps taken"></ol>
+    <div id="outcome" class="outcome" hidden></div>
+    <div class="row end">
+      <span id="traceStatus" class="status" role="status"></span>
+      <button id="copyTrace" class="ghost small" type="button">Copy trace</button>
+    </div>
+    <details id="recent" class="recent"><summary>Recent goals</summary><ul id="recentList"></ul></details>
+  </section>
+
+  <section id="ask" role="tabpanel" aria-labelledby="tabAsk" hidden>
+    <label for="state">Text for Jev to judge</label>
+    <textarea id="state" rows="6" placeholder="Highlight text on a page and right-click → Ask Jev, or paste it here."></textarea>
+    <p id="source" class="fine" hidden></p>
+
+    <label for="pack">What should Jev check?</label>
+    <select id="pack"></select>
+    <p id="packHint" class="fine"></p>
+
+    <details id="editor">
+      <summary>Edit questions</summary>
+      <textarea id="questions" rows="12" spellcheck="false" class="mono"></textarea>
+      <div class="row end">
+        <span id="questionsStatus" class="status" role="status"></span>
+        <button id="resetQuestions" class="ghost small" type="button">Reset to pack</button>
+      </div>
+    </details>
+
+    <button id="askButton" class="primary wide" type="button">Ask Jev <kbd>⌘↵</kbd></button>
+    <section id="results" aria-live="polite"></section>
+  </section>
+
+  <script type="module" src="panel.js"></script>
+</body>
+</html>

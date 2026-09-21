@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Jev options</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <main>
+    <header class="top">
+      <img src="../icons/icon48.png" alt="" width="28" height="28">
+      <h1>Jev options</h1>
+    </header>
+
+    <section class="card">
+      <h2>TypeSafe (required)</h2>
+      <p class="fine">Jev is TypeSafe's decision model. Get a key at <a href="https://console.typesafe.ai/keys" target="_blank" rel="noopener">console.typesafe.ai/keys</a>. It stays in this browser and is sent only to the endpoint below.</p>
+      <label for="tsKey">API key</label>
+      <div class="row">
+        <input id="tsKey" type="password" autocomplete="off" spellcheck="false" placeholder="apikey_…">
+        <button id="tsReveal" class="ghost small" type="button">Show</button>
+        <button id="tsTest" class="small" type="button">Test</button>
+      </div>
+      <span id="tsStatus" class="status" role="status"></span>
+      <div class="grid2">
+        <div><label for="tsModel">Model</label><input id="tsModel" type="text" spellcheck="false" placeholder="jev-latest"></div>
+        <div><label for="tsEndpoint">Endpoint</label><input id="tsEndpoint" type="url" spellcheck="false" placeholder="https://api.typesafe.ai/v1/systemone"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Typing text</h2>
+      <p class="fine">Jev only chooses; it doesn't write. When a step needs text, Jev first uses anything in quotes in your goal. Otherwise:</p>
+      <label class="check"><input type="radio" name="tmMode" id="tmAsk" value="ask"> <span><strong>Ask me</strong> in the panel (no extra key needed)</span></label>
+      <label class="check"><input type="radio" name="tmMode" id="tmModel" value="model"> <span><strong>Use a text model</strong> (OpenAI-compatible; never invents personal data)</span></label>
+      <div id="tmFields" class="indent">
+        <div class="grid2">
+          <div><label for="tmProvider">Provider</label><select id="tmProvider"></select></div>
+          <div><label for="tmModelName">Model</label><input id="tmModelName" type="text" spellcheck="false"></div>
+        </div>
+        <label for="tmBase">Base URL</label>
+        <input id="tmBase" type="url" spellcheck="false" placeholder="https://…/v1">
+        <label for="tmKey">API key</label>
+        <div class="row">
+          <input id="tmKey" type="password" autocomplete="off" spellcheck="false">
+          <button id="tmReveal" class="ghost small" type="button">Show</button>
+          <button id="tmTest" class="small" type="button">Test</button>
+        </div>
+        <span id="tmStatus" class="status" role="status"></span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Driving</h2>
+      <div class="grid2">
+        <div><label for="maxSteps">Max steps per run</label><input id="maxSteps" type="number" min="1" max="200"></div>
+        <div><label for="stepDelay">Pause between steps (ms)</label><input id="stepDelay" type="number" min="0" max="10000" step="50"></div>
+        <div><label for="askBelow">Ask me when confidence is below</label><input id="askBelow" type="number" min="0" max="1" step="0.05"><p class="fine">0 = never ask. Applies to Run, not Step.</p></div>
+        <div><label for="maxText">Page text sent to Jev (characters)</label><input id="maxText" type="number" min="500" max="30000" step="500"></div>
+      </div>
+      <label class="check"><input type="checkbox" id="badges"> <span>Show numbered badges on the page while running</span></label>
+      <label class="check"><input type="checkbox" id="trustedInput"> <span><strong>Real clicks and keystrokes</strong> through Chrome's DevTools protocol. Chrome shows a "started debugging" bar during a run. Off = synthetic events, which some sites ignore.</span></label>
+      <label class="check"><input type="checkbox" id="confirmRisky"> <span><strong>Confirm before risky clicks</strong> (buy, pay, checkout, send, post, publish, delete, remove, subscribe, transfer, book, sign up, agree)</span></label>
+      <label for="riskyWords">Extra words to treat as risky</label>
+      <input id="riskyWords" type="text" placeholder="e.g. launch, approve, withdraw">
+      <label for="blockedSites">Never drive these sites</label>
+      <textarea id="blockedSites" rows="3" placeholder="One per line, e.g. mybank.com"></textarea>
+    </section>
+
+    <div class="row end save">
+      <span id="saveStatus" class="status" role="status"></span>
+      <button id="save" class="primary" type="button">Save</button>
+    </div>
+  </main>
+  <script type="module" src="options.js"></script>
+</body>
+</html>
